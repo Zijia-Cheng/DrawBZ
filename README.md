@@ -1,7 +1,8 @@
 # DrawBZ
-Welcome to use this small program for drawing three dimensional Bulk and Surface Brillouin Zones.
+### Please add a star if you like this program!
+Welcome to use this small program for drawing three-dimensional Bulk and Surface Brillouin Zones.
 
-Directly download the jupyter notebook and use it! Require numpy and matplotlib
+Directly download the Jupyter notebook/Python file and use it! Require numpy and matplotlib
 
 
 Class: BZ
