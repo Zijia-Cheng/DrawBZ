@@ -1,4 +1,4 @@
-# DrawBZ
+# Draw Brillouin Zones
 ### Please add a star if you like this program!
 Welcome to use this small program for drawing three-dimensional Bulk and Surface Brillouin Zones.
 
