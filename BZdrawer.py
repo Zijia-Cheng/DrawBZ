@@ -1,6 +1,13 @@
-#Assuming that we already know the k vectors of the bulk BZ
-#Copy right@ zijiac@princeton.edu
-#Require numpy and matplotlib
+"""
+Assuming that we already know the k-vectors of the bulk Brillouin Zone (BZ).
+
+Author: zijiac@princeton.edu
+
+Requirements:
+- numpy
+- matplotlib
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -11,16 +18,14 @@ class BZ:
     '''
     This class is used to draw the bulk BZ and surface of a given lattice.
 
-    Attributes:
+    Key Attributes:
 
         kvector: the k vector of the bulk BZ, with unit A^-1 and written in the Cartesian coordinates. eg: np.array([[1,0,0],[0,1,0],[0,0,1]]).
         hs_lines_f: the high symmetry lines of the bulk BZ
         hs_points: the high symmetry points of the bulk BZ
         hs_lines_pro_f: the high symmetry lines of the surface BZ
         hs_pro_points: the high symmetry points of the surface BZ
-
-    
-
+        
     '''
     
     def __init__(self, kvector):
@@ -29,21 +34,34 @@ class BZ:
             kvector: the k vector of the bulk BZ, with unit A^-1 and written in the Cartesian coordinates. eg: np.array([[1,0,0],[0,1,0],[0,0,1]]).
         '''
         self.kvector = kvector
+        self.kvectors = [] #The k-vectors of the bulk BZ
+        self.hs_lines_f = [] #The high symmetry lines of the bulk BZ
+        self.hs_points = []
+        self.hs_lines_pro_f = [] #The high symmetry lines of the surface BZ
+        self.hs_pro_points = [] #The high symmetry points of the surface BZ
+        self.dis = None
+        self.direc = None
+        self.direc_a = None
     
-    def crossline(self,vector1:list,vector2:list):
+    def __crossline(self,vector1:list,vector2:list):
         #Return the crossing line of two planes with normal vectors 1 and 2.
         if(abs(np.dot(vector1,vector2))==np.sqrt(np.dot(vector1,vector1)*np.dot(vector2,vector2))):
             return np.array([0,0,0,0,0,0,0,0]) #Two planes are parrellel
+        
         #Vector 1 and 2 are normal vectors of two planes: just k vector): So the planes are vector*(x,y,z)==1/2|vector|^2
         direct = np.cross(vector1,vector2) #The direction of the line
+        
         #Then we need to figure out how to find a point on the line. 
         norm_direct = np.cross(vector1,direct) #direction of a line // to the plane 1 and perpendicular to the line
+        
         #Then the line with direction norm_direct and passing point 1/2 vector1 must be in the plane 1 and perpendicular to the line
         t = 0.5*(np.dot(vector2,vector2)-np.dot(vector1,vector2))/(np.dot(vector2,norm_direct))
+        
         #So the crossing point is t*norm_direct+0.5*vector1
         return np.concatenate((direct,t*norm_direct+0.5*vector1,np.array([-100000,100000]))) #The first three index are the direction, 4-6 are the fixing points, last two are the range of t
     
-    def cutrange(self, kvector,linevector):
+    def __cutrange(self, kvector,linevector):
+
         flag1 = np.dot(kvector,linevector[6]*linevector[:3]+linevector[3:6])-0.5*np.dot(kvector,kvector)
         flag2 = np.dot(kvector,linevector[7]*linevector[:3]+linevector[3:6])-0.5*np.dot(kvector,kvector)
     
@@ -70,7 +88,6 @@ class BZ:
 
         '''
 
-        self.kvectors = []
         kvectors = self.kvectors
         for i in [-1,0,1]:
             for j in [-1,0,1]:
@@ -82,20 +99,22 @@ class BZ:
 
         for i in range(len(self.kvectors)-1):
             for j in range(i+1,len(kvectors)):
-                hs_line = self.crossline(kvectors[i],kvectors[j])
+                hs_line = self.__crossline(kvectors[i],kvectors[j])
                 if(list(hs_line) == [0,0,0,0,0,0,0,0]):
                     continue
                 flag = 0
                 for k in range(len(kvectors)):
                     if(k!=i and k!=j):
                         try:
-                            if(not self.cutrange(kvectors[k],hs_line)):
+                            if(not self.__cutrange(kvectors[k],hs_line)):
                                 flag=1
                                 break
                         except:
                             print(i,j,k,hs_line)
                 if(flag==0 and (hs_line[6]!=0 or hs_line[7]!=0)):
                     hs_lines.append(hs_line)
+        
+        #reset the high symmetry lines
         self.hs_lines_f = []
         for hs_line in hs_lines:
             if(abs(hs_line[6]-hs_line[7])<0.00001):
@@ -107,6 +126,7 @@ class BZ:
                     break
             if(flag==0):
                 self.hs_lines_f.append(hs_line)  
+        #High symmetry points of the bulk BZ
         self.hs_points = []
         for hs_line in self.hs_lines_f:
             flag = 0
@@ -123,13 +143,15 @@ class BZ:
                     break
             if(flag==0):
                 self.hs_points.append(hs_line[7]*hs_line[:3]+hs_line[3:6])
-        self.hs_points = np.array(self.hs_points)
+        
                 
-    def crossline2(self,kvector,kgamma):
+    def __crossline_surface(self,kvector,kgamma):
+
         slope = np.cross(kvector-kgamma,self.direc_a)
         return np.concatenate((slope,0.5*(kvector+kgamma),np.array([-1000,1000])))
 
-    def cutrange2(self,kvector,kgamma,linevector):
+    def __cutrange_surface(self,kvector,kgamma,linevector):
+
         flag1 = np.dot(kvector-kgamma,linevector[6]*linevector[:3]+linevector[3:6])-0.5*np.dot(kvector-kgamma,kvector-kgamma)
         flag2 = np.dot(kvector-kgamma,linevector[7]*linevector[:3]+linevector[3:6])-0.5*np.dot(kvector-kgamma,kvector-kgamma)
         if(flag1>0.0001 and flag2>0.0001):
@@ -143,7 +165,7 @@ class BZ:
 
     
     
-    def surfaceBZ(self,dis,direc):
+    def surfaceBZ(self, dis:float, direc:np.array):
         """
         dis: the distance between the surface BZ and the Gamma point
         direc: the direction of the terminated surface, written in Fractional coordinates with BZ vectors as basis.
@@ -173,16 +195,17 @@ class BZ:
                 kvectors_pro.append(kv_pro)        
         hs_lines_pro = []
         for kv in kvectors_pro:
-            hs_line = self.crossline2(kv,kgamma_pro)
+            hs_line = self.__crossline_surface(kv,kgamma_pro)
             flag = 0
             for i in kvectors_pro:
                 if(np.dot(i-kv,i-kv)>0.00001):
-                    if(not self.cutrange2(i,kgamma_pro,hs_line)):
+                    if(not self.__cutrange_surface(i,kgamma_pro,hs_line)):
                         flag =1
                         break
             if(flag==0):
                 hs_lines_pro.append(hs_line)
 
+        #reset the high symmetry lines of the surface BZ
         self.hs_lines_pro_f = []
         for hs_line in hs_lines_pro:
             if(abs(hs_line[6]-hs_line[7])<0.00001):
@@ -196,7 +219,7 @@ class BZ:
                 self.hs_lines_pro_f.append(hs_line)
 
         #High symmetry points of the surface BZ
-        self.hs_pro_points=[]
+        self.hs_pro_points = []
         for hs_line in self.hs_lines_pro_f:
             flag = 0
             for point in self.hs_pro_points:
@@ -213,7 +236,7 @@ class BZ:
             if(flag==0):
                 self.hs_pro_points.append(hs_line[7]*hs_line[:3]+hs_line[3:6])   
         
-        self.hs_pro_points=np.array(self.hs_pro_points)
+    
 
     def draw_bulkBZ(self):
         """
@@ -223,9 +246,10 @@ class BZ:
             fig, ax: the figure and axis of the plot
 
         """
-        x = self.hs_points[:,0]
-        y = self.hs_points[:,1]
-        z = self.hs_points[:,2]
+        hs_points = np.array(self.hs_points)
+        x = hs_points[:,0]
+        y = hs_points[:,1]
+        z = hs_points[:,2]
         fig = plt.figure()
         ax = Axes3D(fig)
         ax.scatter(x,y,z)
@@ -233,7 +257,6 @@ class BZ:
             start = i[6]*i[:3]+i[3:6]
             end = i[7]*i[:3]+i[3:6]
             ax.plot([start[0],end[0]],[start[1],end[1]],[start[2],end[2]])
-        plt.show()
         
         return fig, ax
     
@@ -245,12 +268,14 @@ class BZ:
             fig, ax: the figure and axis of the plot
         """
 
-        x = self.hs_points[:,0]
-        y = self.hs_points[:,1]
-        z = self.hs_points[:,2]
-        x_pro = self.hs_pro_points[:,0]
-        y_pro = self.hs_pro_points[:,1]
-        z_pro = self.hs_pro_points[:,2]
+        hs_points = np.array(self.hs_points)
+        x = hs_points[:,0]
+        y = hs_points[:,1]
+        z = hs_points[:,2]
+        hs_pro_points = np.array(self.hs_pro_points)
+        x_pro = hs_pro_points[:,0]
+        y_pro = hs_pro_points[:,1]
+        z_pro = hs_pro_points[:,2]
         fig = plt.figure()
         ax = Axes3D(fig)
         ax.scatter(x,y,z)
@@ -264,5 +289,4 @@ class BZ:
             start = i[6]*i[:3]+i[3:6]
             end = i[7]*i[:3]+i[3:6]
             ax.plot([start[0],end[0]],[start[1],end[1]],[start[2],end[2]])
-        plt.show()
         return fig,ax
